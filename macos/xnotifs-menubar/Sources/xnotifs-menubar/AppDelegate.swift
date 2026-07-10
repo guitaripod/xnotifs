@@ -2,8 +2,6 @@ import SwiftUI
 import AppKit
 import Combine
 
-private let glassCornerRadius: CGFloat = 14
-
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
@@ -175,6 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+@MainActor
 private func glassVisualEffectView(frame: NSRect) -> NSVisualEffectView {
     let view = NSVisualEffectView(frame: frame)
     view.material = .hudWindow
@@ -186,6 +185,7 @@ private func glassVisualEffectView(frame: NSRect) -> NSVisualEffectView {
     return view
 }
 
+@MainActor
 private func glassWindow(size: NSSize, hostingView: NSHostingView<some View>) -> NSWindow {
     let window = NSWindow(
         contentRect: NSRect(origin: .zero, size: size),
