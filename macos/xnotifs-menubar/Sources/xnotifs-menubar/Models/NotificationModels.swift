@@ -5,6 +5,7 @@ struct Media: Codable, Identifiable {
     var id: String { url }
     let url: String
     let kind: MediaKind
+    let videoUrl: String?
     let width: Int?
     let height: Int?
     let altText: String?
@@ -22,7 +23,7 @@ struct Media: Codable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case url, kind, width, height, durationSecs = "duration_secs"
-        case altText = "alt_text", posterUrl = "poster_url"
+        case altText = "alt_text", posterUrl = "poster_url", videoUrl = "video_url"
     }
 }
 
@@ -55,7 +56,12 @@ struct XNotification: Codable, Identifiable {
     var primaryActor: NotificationActor? { actors.first }
 
     enum NotificationKind: String, Codable {
-        case like, retweet, reply, quote, follow, mention
+        case like = "Like"
+        case retweet = "Retweet"
+        case reply = "Reply"
+        case quote = "Quote"
+        case follow = "Follow"
+        case mention = "Mention"
 
         var color: Color {
             switch self {
