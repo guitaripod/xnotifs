@@ -1,0 +1,19 @@
+# Rust
+target/
+**/*.rs.bk
+
+# macOS
+.build/
+DerivedData/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+xcuserdata/
+*.app
+.DS_Store
+.swiftpm/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

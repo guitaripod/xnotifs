@@ -1,0 +1,85 @@
+.xnotifs-window {
+    font-family: "Inter", "Cantarell", "Noto Sans", sans-serif;
+    background-color: @window_bg_color;
+}
+
+.expanded-panel {
+    background-color: @window_bg_color;
+}
+
+.panel-title {
+    font-weight: 700;
+    font-size: 15px;
+    color: @window_fg_color;
+}
+
+.notif-list {
+    background-color: transparent;
+}
+
+.notif-list row {
+    transition: background-color 120ms ease;
+    border-bottom: 1px solid alpha(@borders, 0.12);
+}
+
+.notif-list row:hover {
+    background-color: alpha(@shade_color, 0.4);
+}
+
+.notif-list row:last-child {
+    border-bottom: none;
+}
+
+.notif-row {
+    padding: 0;
+}
+
+.notif-border {
+    min-width: 3px;
+}
+
+.notif-avatar {
+    min-width: 38px;
+    min-height: 38px;
+    border-radius: 999px;
+}
+
+.notif-name {
+    color: @window_fg_color;
+}
+
+.verified-badge {
+    color: #1d9bf0;
+    -gtk-icon-size: 14px;
+}
+
+.notif-type-icon {
+    opacity: 0.65;
+    color: alpha(@window_fg_color, 0.6);
+}
+
+.notif-time {
+    color: alpha(@window_fg_color, 0.4);
+    font-size: 0.8em;
+}
+
+.notif-snippet {
+    color: alpha(@window_fg_color, 0.8);
+    line-height: 1.45;
+}
+
+.notif-meta {
+    color: alpha(@window_fg_color, 0.4);
+    font-size: 0.78em;
+}
+
+.notif-thumb-frame {
+    border-radius: 8px;
+    min-width: 48px;
+    min-height: 48px;
+    background-color: alpha(@shade_color, 0.3);
+}
+
+.notif-thumb {
+    border-radius: 8px;
+}
