@@ -26,7 +26,7 @@ struct SettingsView: View {
             }
         }
         .frame(width: 360, height: 340)
-        .glassBackground()
+        .glassPanelBackground()
     }
 
     private var titleBar: some View {
@@ -145,39 +145,5 @@ struct SettingsView: View {
         }
         .foregroundStyle(.secondary)
         .kerning(0.5)
-    }
-}
-
-private struct GlassTextFieldStyle: TextFieldStyle {
-    func _body(configuration: TextField<Self._Label>) -> some View {
-        configuration
-            .font(.system(size: 12))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(.quaternary.opacity(0.4))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(.white.opacity(0.08), lineWidth: 0.5)
-            )
-    }
-}
-
-extension TextFieldStyle where Self == GlassTextFieldStyle {
-    static var glassField: GlassTextFieldStyle { .init() }
-}
-
-private extension View {
-    func glassBackground() -> some View {
-        background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(.white.opacity(0.12), lineWidth: 0.5)
-                )
-        )
     }
 }

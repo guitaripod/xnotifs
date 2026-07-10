@@ -31,7 +31,7 @@ final class NotificationsViewModel: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(self.settings.pollIntervalSecs))
                 guard !Task.isCancelled else { break }
-                self.apiClient.updateBaseURL(self.settings.resolvedServerURL)
+                await self.apiClient.updateBaseURL(self.settings.resolvedServerURL)
                 await self.fetchLatest()
             }
         }
@@ -116,7 +116,6 @@ final class NotificationsViewModel: ObservableObject {
             let new = page.notifications.filter { seenIDs.insert($0.id).inserted }
             guard !new.isEmpty else { return }
 
-            let previousCount = unreadCount
             unreadCount = min(unreadCount + new.count, settings.maxNotifications)
 
             withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
@@ -143,10 +142,10 @@ extension NotificationsViewModel {
     static func relativeTime(from date: Date) -> String {
         let interval = -date.timeIntervalSinceNow
         switch interval {
-        case ..<10:   "just now"
-        case ..<60:   "\(Int(interval))s"
-        case ..<3600: "\(Int(interval / 60))m"
-        case ..<86400: "\(Int(interval / 3600))h"
+        case ..<10:   return "just now"
+        case ..<60:   return "\(Int(interval))s"
+        case ..<3600: return "\(Int(interval / 60))m"
+        case ..<86400: return "\(Int(interval / 3600))h"
         default:
             let formatter = DateFormatter()
             formatter.dateFormat = "MMM d"
@@ -156,7 +155,7 @@ extension NotificationsViewModel {
 
     static func formatCount(_ count: Int) -> String {
         switch count {
-        case ..<1000: "\(count)"
+        case ..<1000: return "\(count)"
         case ..<1000000:
             let k = Double(count) / 1000.0
             return String(format: "%.1fK", k)
