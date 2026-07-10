@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ml.rawdog.xnotifs-menubar</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/marcus/Applications/xnotifs.app/Contents/MacOS/xnotifs-menubar</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>XNOTIFS_SERVER</key>
+        <string>http://arch.taila1a09.ts.net:7777</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/marcus/Library/Logs/xnotifs.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/marcus/Library/Logs/xnotifs.log</string>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+</dict>
+</plist>
