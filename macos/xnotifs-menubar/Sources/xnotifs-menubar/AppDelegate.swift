@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         viewModel.startPolling()
         updateStatusIcon()
         observeUnreadCount()
+        AppLog.info("menubar ready — polling \(settings.resolvedServerURL.absoluteString) every \(settings.pollIntervalSecs)s")
     }
 
     func applicationWillTerminate(_ notification: Notification) {

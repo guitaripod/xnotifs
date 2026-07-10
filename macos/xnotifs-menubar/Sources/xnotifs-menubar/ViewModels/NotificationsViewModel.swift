@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import UserNotifications
+import OSLog
 
 @MainActor
 final class NotificationsViewModel: ObservableObject {
@@ -83,7 +84,7 @@ final class NotificationsViewModel: ObservableObject {
             }
         } catch {
             errorMessage = error.localizedDescription
-            print("[xnotifs] loadMore error: \(error.localizedDescription)")
+            AppLog.error("loadMore: \(error.localizedDescription)")
         }
     }
 
@@ -133,6 +134,7 @@ final class NotificationsViewModel: ObservableObject {
             PersistedSeenIDs.save(seenIDs)
 
             unreadCount += new.count
+            AppLog.info("fetched \(new.count) new notifications, \(unreadCount) unread")
 
             withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
                 notifications.insert(contentsOf: new, at: 0)
@@ -151,7 +153,7 @@ final class NotificationsViewModel: ObservableObject {
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
-            print("[xnotifs] fetch error: \(error.localizedDescription)")
+            AppLog.error("fetch: \(error.localizedDescription)")
         }
     }
 
