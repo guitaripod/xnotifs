@@ -9,10 +9,7 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "xnotifs-menubar",
-            path: "Sources/xnotifs-menubar",
-            resources: [
-                .process("Resources")
-            ]
+            path: "Sources/xnotifs-menubar"
         )
     ]
 )
