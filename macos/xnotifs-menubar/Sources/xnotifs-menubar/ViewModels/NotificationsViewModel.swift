@@ -1,7 +1,6 @@
 import SwiftUI
 import AppKit
 import UserNotifications
-import OSLog
 
 @MainActor
 final class NotificationsViewModel: ObservableObject {

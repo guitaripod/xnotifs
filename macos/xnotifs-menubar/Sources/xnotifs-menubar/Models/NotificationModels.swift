@@ -22,8 +22,11 @@ struct Media: Codable, Identifiable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case url, kind, width, height, durationSecs = "duration_secs"
-        case altText = "alt_text", posterUrl = "poster_url", videoUrl = "video_url"
+        case url, kind, width, height
+        case videoUrl = "video_url"
+        case altText = "alt_text"
+        case durationSecs = "duration_secs"
+        case posterUrl = "poster_url"
     }
 }
 
@@ -37,7 +40,8 @@ struct NotificationActor: Codable, Identifiable {
 
     enum CodingKeys: String, CodingKey {
         case handle, name, verified
-        case restId = "rest_id", avatarUrl = "avatar_url"
+        case restId = "rest_id"
+        case avatarUrl = "avatar_url"
     }
 }
 
