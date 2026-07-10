@@ -1,5 +1,8 @@
 import SwiftUI
 import AppKit
+import Combine
+
+private let glassCornerRadius: CGFloat = 14
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -7,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var popover: NSPopover!
     private var eventMonitor: Any?
     private var settingsWindow: NSWindow?
+    private var cancellables = Set<AnyCancellable>()
     private let viewModel = NotificationsViewModel()
     private let settings = AppSettings.shared
 
@@ -28,53 +32,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func openSettingsWindow(_ sender: Any?) {
-        if let existing = settingsWindow {
-            existing.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
-            return
+        if settingsWindow == nil {
+            let hostingView = NSHostingView(
+                rootView: SettingsView(settings: settings) { [weak self] in
+                    self?.settingsWindow?.close()
+                }
+            )
+            let window = glassWindow(size: NSSize(width: 380, height: 380), hostingView: hostingView)
+            window.title = "xnotifs Settings"
+            window.center()
+            settingsWindow = window
         }
-
-        let hostingView = NSHostingView(
-            rootView: SettingsView(settings: settings)
-        )
-
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 380),
-            styleMask: [.titled, .closable, .fullSizeContentView],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "xnotifs Settings"
-        window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
-        window.isReleasedWhenClosed = false
-        window.level = .floating
-        window.hasShadow = true
-        window.isOpaque = false
-        window.backgroundColor = .clear
-
-        let visualEffect = NSVisualEffectView(frame: window.contentView!.bounds)
-        visualEffect.material = .hudWindow
-        visualEffect.blendingMode = .behindWindow
-        visualEffect.state = .active
-        visualEffect.wantsLayer = true
-        visualEffect.layer?.cornerRadius = 14
-        visualEffect.layer?.masksToBounds = true
-
-        visualEffect.addSubview(hostingView)
-        hostingView.translatesAutoresizingMaskIntoConstraints = false
-        NSLayoutConstraint.activate([
-            hostingView.topAnchor.constraint(equalTo: visualEffect.topAnchor),
-            hostingView.leadingAnchor.constraint(equalTo: visualEffect.leadingAnchor),
-            hostingView.trailingAnchor.constraint(equalTo: visualEffect.trailingAnchor),
-            hostingView.bottomAnchor.constraint(equalTo: visualEffect.bottomAnchor),
-        ])
-
-        window.contentView = visualEffect
-        window.center()
-        window.makeKeyAndOrderFront(nil)
+        settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        settingsWindow = window
+    }
+
+    @objc func quitApp() {
+        viewModel.stopPolling()
+        NSApp.terminate(nil)
     }
 
     private func setupStatusItem() {
@@ -83,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let button = statusItem.button {
             button.image = NSImage(
                 systemSymbolName: "bell.fill",
-                accessibilityDescription: nil
+                accessibilityDescription: "xnotifs"
             )?.withSymbolConfiguration(
                 NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
             )
@@ -92,8 +67,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
             button.target = self
             button.action = #selector(togglePopover)
-            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+            button.sendAction(on: .leftMouseUp)
         }
+
+        let menu = NSMenu()
+        menu.addItem(
+            NSMenuItem(
+                title: "Settings...",
+                action: #selector(openSettingsWindow),
+                keyEquivalent: ","
+            )
+        )
+        menu.addItem(.separator())
+        menu.addItem(
+            NSMenuItem(
+                title: "Quit xnotifs",
+                action: #selector(quitApp),
+                keyEquivalent: "q"
+            )
+        )
+        statusItem.menu = menu
     }
 
     private func setupPopover() {
@@ -110,15 +103,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hostingView.frame = NSRect(x: 0, y: 0, width: 420, height: 620)
         hostingView.autoresizingMask = [.width, .height]
 
-        let visualEffect = NSVisualEffectView(frame: hostingView.bounds)
-        visualEffect.material = .hudWindow
-        visualEffect.blendingMode = .behindWindow
-        visualEffect.state = .active
-        visualEffect.wantsLayer = true
-        visualEffect.layer?.cornerRadius = 14
-        visualEffect.layer?.masksToBounds = true
+        let visualEffect = glassVisualEffectView(frame: hostingView.bounds)
         visualEffect.autoresizingMask = [.width, .height]
-
         visualEffect.addSubview(hostingView)
 
         let viewController = NSViewController()
@@ -153,9 +139,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.isOpaque = false
             window.backgroundColor = .clear
         }
-
-        viewModel.markAllRead()
-        updateStatusIcon()
     }
 
     private func closePopover() {
@@ -163,11 +146,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func observeUnreadCount() {
-        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in
+        viewModel.$unreadCount
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
                 self?.updateStatusIcon()
             }
-        }
+            .store(in: &cancellables)
     }
 
     private func updateStatusIcon() {
@@ -189,4 +173,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
             : NSAttributedString(string: "")
     }
+}
+
+private func glassVisualEffectView(frame: NSRect) -> NSVisualEffectView {
+    let view = NSVisualEffectView(frame: frame)
+    view.material = .hudWindow
+    view.blendingMode = .behindWindow
+    view.state = .active
+    view.wantsLayer = true
+    view.layer?.cornerRadius = glassCornerRadius
+    view.layer?.masksToBounds = true
+    return view
+}
+
+private func glassWindow(size: NSSize, hostingView: NSHostingView<some View>) -> NSWindow {
+    let window = NSWindow(
+        contentRect: NSRect(origin: .zero, size: size),
+        styleMask: [.titled, .closable, .fullSizeContentView],
+        backing: .buffered,
+        defer: false
+    )
+    window.titlebarAppearsTransparent = true
+    window.isMovableByWindowBackground = true
+    window.isReleasedWhenClosed = false
+    window.level = .floating
+    window.hasShadow = true
+    window.isOpaque = false
+    window.backgroundColor = .clear
+
+    let visualEffect = glassVisualEffectView(frame: NSRect(origin: .zero, size: size))
+    visualEffect.addSubview(hostingView)
+    hostingView.translatesAutoresizingMaskIntoConstraints = false
+    NSLayoutConstraint.activate([
+        hostingView.topAnchor.constraint(equalTo: visualEffect.topAnchor),
+        hostingView.leadingAnchor.constraint(equalTo: visualEffect.leadingAnchor),
+        hostingView.trailingAnchor.constraint(equalTo: visualEffect.trailingAnchor),
+        hostingView.bottomAnchor.constraint(equalTo: visualEffect.bottomAnchor),
+    ])
+
+    window.contentView = visualEffect
+    return window
 }

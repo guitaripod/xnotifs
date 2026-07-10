@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UserNotifications
 
 @MainActor
 final class NotificationsViewModel: ObservableObject {
@@ -9,12 +10,13 @@ final class NotificationsViewModel: ObservableObject {
     @Published var errorMessage: String?
 
     private let settings = AppSettings.shared
-    private var apiClient = ApiClient(baseURL: AppSettings.shared.resolvedServerURL)
-    private var seenIDs = Set<String>()
+    private var apiClient: ApiClient
+    private var seenIDs = PersistedSeenIDs.load()
     private var cursor: String?
     private var hasMore = true
     private var pollTask: Task<Void, Never>?
     private var isLoadingMore = false
+    private var previousNewestID: String?
 
     private var cache: NSCache<NSString, NSData> = {
         let c = NSCache<NSString, NSData>()
@@ -22,6 +24,17 @@ final class NotificationsViewModel: ObservableObject {
         c.totalCostLimit = 50 * 1024 * 1024
         return c
     }()
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f
+    }()
+
+    init() {
+        apiClient = ApiClient(baseURL: settings.resolvedServerURL)
+        requestNotificationPermission()
+    }
 
     func startPolling() {
         pollTask?.cancel()
@@ -45,6 +58,7 @@ final class NotificationsViewModel: ObservableObject {
     func refresh() async {
         cursor = nil
         hasMore = true
+        await apiClient.updateBaseURL(settings.resolvedServerURL)
         seenIDs.removeAll()
         notifications.removeAll()
         await fetchLatest()
@@ -62,11 +76,13 @@ final class NotificationsViewModel: ObservableObject {
 
             let new = page.notifications.filter { seenIDs.insert($0.id).inserted }
             guard !new.isEmpty else { return }
+            PersistedSeenIDs.save(seenIDs)
 
             withAnimation(.spring(duration: 0.35, bounce: 0.2)) {
                 notifications.append(contentsOf: new)
             }
         } catch {
+            errorMessage = error.localizedDescription
             print("[xnotifs] loadMore error: \(error.localizedDescription)")
         }
     }
@@ -98,9 +114,8 @@ final class NotificationsViewModel: ObservableObject {
         NSWorkspace.shared.open(url)
     }
 
-    func openActorProfile(_ actor: NotificationActor) {
-        guard let url = URL(string: "https://x.com/\(actor.handle)") else { return }
-        NSWorkspace.shared.open(url)
+    func markAllRead() {
+        unreadCount = 0
     }
 
     private func fetchLatest() async {
@@ -115,8 +130,9 @@ final class NotificationsViewModel: ObservableObject {
 
             let new = page.notifications.filter { seenIDs.insert($0.id).inserted }
             guard !new.isEmpty else { return }
+            PersistedSeenIDs.save(seenIDs)
 
-            unreadCount = min(unreadCount + new.count, settings.maxNotifications)
+            unreadCount += new.count
 
             withAnimation(.spring(duration: 0.4, bounce: 0.15)) {
                 notifications.insert(contentsOf: new, at: 0)
@@ -126,6 +142,12 @@ final class NotificationsViewModel: ObservableObject {
                 notifications = Array(notifications.prefix(settings.maxNotifications))
             }
 
+            let newestID = page.notifications.first?.id
+            if let newestID, newestID != previousNewestID {
+                previousNewestID = newestID
+                deliverNotifications(new)
+            }
+
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription
@@ -133,8 +155,39 @@ final class NotificationsViewModel: ObservableObject {
         }
     }
 
-    func markAllRead() {
-        unreadCount = 0
+    private func requestNotificationPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+    }
+
+    private func deliverNotifications(_ notifications: [XNotification]) {
+        let center = UNUserNotificationCenter.current()
+        for notification in notifications.prefix(3) {
+            let content = UNMutableNotificationContent()
+            content.title = notification.primaryActor?.name ?? "New notification"
+            content.sound = .default
+
+            switch notification.kind {
+            case .like:
+                content.body = "liked your post"
+            case .retweet:
+                content.body = "reposted your post"
+            case .reply:
+                content.body = notification.targetTweetSnippet ?? "replied to your post"
+            case .quote:
+                content.body = notification.targetTweetSnippet ?? "quoted your post"
+            case .follow:
+                content.body = "@\(notification.primaryActor?.handle ?? "") followed you"
+            case .mention:
+                content.body = notification.targetTweetSnippet ?? "mentioned you"
+            }
+
+            let request = UNNotificationRequest(
+                identifier: notification.id,
+                content: content,
+                trigger: nil
+            )
+            center.add(request)
+        }
     }
 }
 
@@ -146,10 +199,7 @@ extension NotificationsViewModel {
         case ..<60:   return "\(Int(interval))s"
         case ..<3600: return "\(Int(interval / 60))m"
         case ..<86400: return "\(Int(interval / 3600))h"
-        default:
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM d"
-            return formatter.string(from: date)
+        default:      return dateFormatter.string(from: date)
         }
     }
 
@@ -164,18 +214,21 @@ extension NotificationsViewModel {
             return String(format: "%.1fM", m)
         }
     }
+}
 
-    static func actorNames(_ actors: [NotificationActor], othersCount: Int?) -> String {
-        guard let primary = actors.first else { return "Someone" }
-        if actors.count == 1 && (othersCount ?? 0) == 0 {
-            return primary.name
-        }
-        let total = actors.count + (othersCount ?? 0)
-        if total <= 2 {
-            let names = actors.prefix(2).map(\.name).joined(separator: " and ")
-            return names
-        }
-        let count = total - 1
-        return "\(primary.name) and \(count) other\(count == 1 ? "" : "s")"
+private enum PersistedSeenIDs {
+    private static let key = "xnotifs.seenIDs"
+    private static let maxPersisted = 2000
+
+    static func load() -> Set<String> {
+        guard let data = UserDefaults.standard.data(forKey: key) else { return [] }
+        let ids = (try? JSONDecoder().decode([String].self, from: data)) ?? []
+        return Set(ids.suffix(maxPersisted))
+    }
+
+    static func save(_ ids: Set<String>) {
+        let trimmed = Array(ids.suffix(maxPersisted))
+        guard let data = try? JSONEncoder().encode(trimmed) else { return }
+        UserDefaults.standard.set(data, forKey: key)
     }
 }

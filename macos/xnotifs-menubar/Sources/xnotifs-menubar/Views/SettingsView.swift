@@ -2,13 +2,14 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
-    @Environment(\.dismiss) private var dismiss
+    let onClose: () -> Void
 
     @State private var serverURLText: String
     @State private var isValidURL = true
 
-    init(settings: AppSettings) {
+    init(settings: AppSettings, onClose: @escaping () -> Void) {
         self.settings = settings
+        self.onClose = onClose
         _serverURLText = State(initialValue: settings.serverURL)
     }
 
@@ -25,7 +26,7 @@ struct SettingsView: View {
                 .padding(20)
             }
         }
-        .frame(width: 360, height: 340)
+        .frame(width: 360, height: 310)
         .glassPanelBackground()
     }
 
@@ -40,9 +41,7 @@ struct SettingsView: View {
 
             Spacer()
 
-            Button {
-                dismiss()
-            } label: {
+            Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .bold))
                     .frame(width: 20, height: 20)
@@ -64,7 +63,7 @@ struct SettingsView: View {
             TextField("http://localhost:7777", text: $serverURLText)
                 .textFieldStyle(.glassField)
                 .onChange(of: serverURLText) { _, newValue in
-                    isValidURL = URL(string: newValue) != nil
+                    isValidURL = URL(string: newValue)?.scheme.map { ["http", "https"].contains($0) } == true
                     if isValidURL {
                         settings.serverURL = newValue
                     }
@@ -99,19 +98,6 @@ struct SettingsView: View {
             }
             .toggleStyle(.switch)
             .tint(.blue)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Font scale")
-                    .font(.system(size: 12, weight: .medium))
-
-                Picker("", selection: $settings.fontScale) {
-                    Text("Small").tag(0.85)
-                    Text("Default").tag(1.0)
-                    Text("Large").tag(1.15)
-                    Text("Extra").tag(1.3)
-                }
-                .pickerStyle(.segmented)
-            }
         }
     }
 

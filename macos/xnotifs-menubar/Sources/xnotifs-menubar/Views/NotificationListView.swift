@@ -2,6 +2,7 @@ import SwiftUI
 
 struct NotificationListView: View {
     @ObservedObject var viewModel: NotificationsViewModel
+    @EnvironmentObject private var settings: AppSettings
 
     var body: some View {
         VStack(spacing: 0) {
@@ -107,6 +108,7 @@ struct NotificationListView: View {
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.notifications) { notification in
                     NotificationRow(notification: notification, viewModel: viewModel)
+                        .environmentObject(settings)
                         .overlay(alignment: .bottom) {
                             if notification.id != viewModel.notifications.last?.id {
                                 Divider().opacity(0.2).padding(.leading, 56)
@@ -136,7 +138,7 @@ struct NotificationListView: View {
 
     private func openSettings() {
         NSApp.sendAction(
-            Selector(("openSettingsWindow:")),
+            #selector(AppDelegate.openSettingsWindow(_:)),
             to: NSApp.delegate as AnyObject?,
             from: nil
         )

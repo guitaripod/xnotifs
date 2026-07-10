@@ -53,9 +53,22 @@ actor ApiClient {
             throw ApiError.invalidURL
         }
 
+        let data = try await fetchData(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
+        do {
+            return try decoder.decode(NotificationsPage.self, from: data)
+        } catch {
+            throw ApiError.decode(error)
+        }
+    }
+
+    func fetchImageData(from url: URL) async throws -> Data {
+        try await fetchData(url: url, cachePolicy: .returnCacheDataElseLoad)
+    }
+
+    private func fetchData(url: URL, cachePolicy: NSURLRequest.CachePolicy) async throws -> Data {
         var request = URLRequest(url: url)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.cachePolicy = cachePolicy
 
         let (data, response): (Data, URLResponse)
         do {
@@ -73,22 +86,6 @@ actor ApiClient {
             throw ApiError.http(http.statusCode, body)
         }
 
-        do {
-            return try decoder.decode(NotificationsPage.self, from: data)
-        } catch {
-            throw ApiError.decode(error)
-        }
-    }
-
-    func fetchImageData(from url: URL) async throws -> Data {
-        var request = URLRequest(url: url)
-        request.cachePolicy = .returnCacheDataElseLoad
-        let (data, response) = try await session.data(for: request)
-
-        guard let http = response as? HTTPURLResponse,
-              (200...299).contains(http.statusCode) else {
-            throw ApiError.http(0, "Image fetch failed")
-        }
         return data
     }
 }

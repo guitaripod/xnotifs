@@ -4,8 +4,10 @@ struct NotificationRow: View {
     let notification: XNotification
     let viewModel: NotificationsViewModel
 
+    @EnvironmentObject private var settings: AppSettings
     @State private var avatarImage: NSImage?
     @State private var thumbnailImage: NSImage?
+    @State private var isHovering = false
 
     var body: some View {
         Button {
@@ -16,7 +18,7 @@ struct NotificationRow: View {
                 avatarView
                 contentColumn
                 Spacer(minLength: 0)
-                if AppSettings.shared.showThumbnails, let media = notification.targetMedia?.first {
+                if settings.showThumbnails, let media = notification.targetMedia?.first {
                     thumbnailView(for: media)
                 }
             }
@@ -25,46 +27,33 @@ struct NotificationRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .task { await loadAvatar() }
-        .task {
+        .buttonStyle(RowButtonStyle())
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) {
+                isHovering = hovering
+            }
+        }
+        .background(
+            Rectangle()
+                .fill(.quaternary.opacity(isHovering ? 0.4 : 0))
+        )
+        .task(id: notification.id) { await loadAvatar() }
+        .task(id: notification.id) {
             if let media = notification.targetMedia?.first {
                 await loadThumbnail(for: media)
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityText)
     }
 
-    @ViewBuilder
     private var kindIndicator: some View {
         RoundedRectangle(cornerRadius: 2, style: .continuous)
-            .fill(kindColor)
+            .fill(notification.kind.color)
             .frame(width: 3)
             .padding(.vertical, 2)
     }
 
-    private var kindColor: Color {
-        switch notification.kind {
-        case .like:    .pink
-        case .retweet: .green
-        case .reply:   .blue
-        case .quote:   .blue
-        case .follow:  .blue
-        case .mention: .blue
-        }
-    }
-
-    private var kindIcon: String {
-        switch notification.kind {
-        case .like:    "heart.fill"
-        case .retweet: "arrow.2.squarepath"
-        case .reply:   "arrowshape.turn.up.left.fill"
-        case .quote:   "quote.bubble.fill"
-        case .follow:  "person.fill.badge.plus"
-        case .mention: "at"
-        }
-    }
-
-    @ViewBuilder
     private var avatarView: some View {
         Group {
             if let image = avatarImage {
@@ -86,7 +75,6 @@ struct NotificationRow: View {
         )
     }
 
-    @ViewBuilder
     private var contentColumn: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 4) {
@@ -100,21 +88,7 @@ struct NotificationRow: View {
                         .foregroundStyle(.blue)
                 }
 
-                HStack(spacing: 3) {
-                    Image(systemName: kindIcon)
-                        .font(.system(size: 9, weight: .bold))
-                    if notification.kind != .follow {
-                        Text(kindLabel)
-                            .font(.system(size: 10, weight: .medium))
-                    }
-                }
-                .foregroundStyle(kindColor)
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2)
-                .background(
-                    Capsule(style: .continuous)
-                        .fill(kindColor.opacity(0.12))
-                )
+                kindBadge
 
                 Spacer(minLength: 4)
 
@@ -123,7 +97,7 @@ struct NotificationRow: View {
                     .foregroundStyle(.tertiary)
             }
 
-            if notification.kind == .follow {
+            if notification.kind.showsFollowHandle {
                 Text("@\(notification.primaryActor?.handle ?? "")")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -150,7 +124,24 @@ struct NotificationRow: View {
         }
     }
 
-    @ViewBuilder
+    private var kindBadge: some View {
+        HStack(spacing: 3) {
+            Image(systemName: notification.kind.icon)
+                .font(.system(size: 9, weight: .bold))
+            if !notification.kind.label.isEmpty {
+                Text(notification.kind.label)
+                    .font(.system(size: 10, weight: .medium))
+            }
+        }
+        .foregroundStyle(notification.kind.color)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .background(
+            Capsule(style: .continuous)
+                .fill(notification.kind.color.opacity(0.12))
+        )
+    }
+
     private func thumbnailView(for media: Media) -> some View {
         Group {
             if let image = thumbnailImage {
@@ -175,15 +166,10 @@ struct NotificationRow: View {
         )
     }
 
-    private var kindLabel: String {
-        switch notification.kind {
-        case .like:    "liked"
-        case .retweet: "reposted"
-        case .reply:   "replied"
-        case .quote:   "quoted"
-        case .mention: "mentioned"
-        case .follow:  ""
-        }
+    private var accessibilityText: String {
+        let name = notification.primaryActor?.name ?? "Unknown"
+        let kind = notification.kind.label
+        return "\(name) \(kind)\(notification.targetTweetSnippet.map { ": \($0)" } ?? "")"
     }
 
     private func loadAvatar() async {
@@ -199,5 +185,14 @@ struct NotificationRow: View {
         if let data = await viewModel.imageData(for: url) {
             thumbnailImage = NSImage(data: data)
         }
+    }
+}
+
+private struct RowButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.7 : 1.0)
+            .scaleEffect(configuration.isPressed ? 0.995 : 1.0)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 struct Media: Codable, Identifiable {
     var id: String { url }
@@ -52,16 +53,41 @@ struct XNotification: Codable, Identifiable {
     let timestamp: Date
 
     var primaryActor: NotificationActor? { actors.first }
-    var hasMultipleActors: Bool { (othersCount ?? 0) > 0 }
-    var actorDisplayCount: Int { actors.count + (othersCount ?? 0) }
 
     enum NotificationKind: String, Codable {
-        case like
-        case retweet
-        case reply
-        case quote
-        case follow
-        case mention
+        case like, retweet, reply, quote, follow, mention
+
+        var color: Color {
+            switch self {
+            case .like: .pink
+            case .retweet: .green
+            case .reply, .quote, .follow, .mention: .blue
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .like: "heart.fill"
+            case .retweet: "arrow.2.squarepath"
+            case .reply: "arrowshape.turn.up.left.fill"
+            case .quote: "quote.bubble.fill"
+            case .follow: "person.fill.badge.plus"
+            case .mention: "at"
+            }
+        }
+
+        var label: String {
+            switch self {
+            case .like: "liked"
+            case .retweet: "reposted"
+            case .reply: "replied"
+            case .quote: "quoted"
+            case .mention: "mentioned"
+            case .follow: ""
+            }
+        }
+
+        var showsFollowHandle: Bool { self == .follow }
     }
 
     enum CodingKeys: String, CodingKey {

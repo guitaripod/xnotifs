@@ -1,5 +1,7 @@
 import SwiftUI
 
+let glassCornerRadius: CGFloat = 14
+
 struct GlassHeaderButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -18,7 +20,7 @@ extension ButtonStyle where Self == GlassHeaderButtonStyle {
     static var glassHeaderButton: GlassHeaderButtonStyle { .init() }
 }
 
-struct GlassTextFieldStyle: TextFieldStyle {
+struct ThemedTextFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
             .font(.system(size: 12))
@@ -35,17 +37,17 @@ struct GlassTextFieldStyle: TextFieldStyle {
     }
 }
 
-extension TextFieldStyle where Self == GlassTextFieldStyle {
-    static var glassField: GlassTextFieldStyle { .init() }
+extension TextFieldStyle where Self == ThemedTextFieldStyle {
+    static var glassField: ThemedTextFieldStyle { .init() }
 }
 
 extension View {
     func glassPanelBackground() -> some View {
         background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: glassCornerRadius, style: .continuous)
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    RoundedRectangle(cornerRadius: glassCornerRadius, style: .continuous)
                         .stroke(.white.opacity(0.12), lineWidth: 0.5)
                 )
         )
