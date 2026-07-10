@@ -56,6 +56,12 @@ actor ApiClient {
         let data = try await fetchData(url: url, cachePolicy: .reloadIgnoringLocalCacheData)
         do {
             return try decoder.decode(NotificationsPage.self, from: data)
+        } catch let error as DecodingError {
+            AppLog.error("decode failure: \(error)")
+            if let body = String(data: data, encoding: .utf8) {
+                AppLog.error("raw body (first 500 chars): \(String(body.prefix(500)))")
+            }
+            throw ApiError.decode(error)
         } catch {
             throw ApiError.decode(error)
         }
